@@ -1,90 +1,26 @@
-import { Channel, Client, GuildChannel, Message, type GuildTextBasedChannel } from "@deksdeveloper/discord.js-self-bot";
-import sound from 'sound-play';
-import path from "node:path";
-import { loadEnvFile } from "node:process";
+import { Client, Message, type GuildTextBasedChannel } from "@deksdeveloper/discord.js-self-bot";
+import { sleep, jitter } from "./utils/timer.util.js";
+import { checkCaptcha } from "./utils/captcha.util.js";
+import { playSound } from "./utils/sound.util.js";
+import type { CooldownTracker, CurrentStatus, CommandResult, ActionCounter } from "./types/index.js";
+import { config } from "./config/config.js";
 
-loadEnvFile();
-
-function getRequiredEnv(key: string): string {
-    const value = process.env[key];
-    if (!value) {
-        throw new Error(`[FATAL] Missing required environment variable: ${key}. Check your .env file!`)
-    }
-    return value;
+function isOwOBotMessage(message: Message): boolean {
+    return message.channelId === config.targetChannelId && message.author?.id === config.owoBotId
 };
 
-function isOwOBotMessage(message: any): boolean {
-    return message.channelId === config.targetChannelId && message.author?.id === OWO_BOT_ID
-};
-
-function sleep(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-function checkCaptcha(message: Message): boolean {
-    let content = message.content.toLowerCase();
-    const captchaMessages = [
-        'beep boop',
-        'captcha',
-        'verify',
-        'human',
-        'real',
-    ];
-    let captchaFound = captchaMessages.some(element => content.includes(element));
-    return captchaFound;
-}
-const OWO_BOT_ID = "408785106942164992";
-const TOKEN = getRequiredEnv("TOKEN");
-const SERVERID = getRequiredEnv("SERVER_ID");
-const CHANNELID = getRequiredEnv("CHANNEL_ID");
-const ACCOUNTID = getRequiredEnv("ACCOUNT_ID");
-const soundPath = path.join(import.meta.dirname, './src/sound/Alarm (Official Audio) Cheema Y Gur Sidhu Deepak Dhillon.mp3')
-
-
-type OwOCommand = 'owo hunt' | 'owo battle' | 'owo pray' | 'owo curse';
-type CommandResult = { status: 'waiting' | 'sent' | 'completed', command: OwOCommand, sentAt: number };
-type CurrentStatus = 'idle' | 'running' | 'cooldown' | 'captcha_alert';
-type CooldownTracker = Record<OwOCommand, number>
-
-interface BotConfig {
-    readonly prefix: string;
-    targetServerId: string;
-    targetChannelId: string;
-    accountId: string;
-    cooldowns: {
-        hunt: number;
-        battle: number;
-        pray: number;
-        curse: number
-    };
-    enableAutoBattle: boolean;
-    enableAutoHunt: boolean;
-    enableAutoPray: boolean;
-};
-
-const config: BotConfig = {
-    prefix: 'owo',
-    targetServerId: SERVERID,
-    targetChannelId: CHANNELID,
-    accountId: ACCOUNTID,
-    cooldowns: {
-        hunt: 17000,
-        battle: 19000,
-        pray: 350,
-        curse: 380
-    },
-    enableAutoBattle: true,
-    enableAutoHunt: true,
-    enableAutoPray: false
-};
 const lastRan: CooldownTracker = {
     "owo battle": 0,
     "owo curse": 0,
     "owo hunt": 0,
     "owo pray": 0
-}
+};
+
 let currentStatus: CurrentStatus = 'idle';
 let huntCommand: CommandResult = { status: 'waiting', command: 'owo hunt', sentAt: 0 }
 let battleCommand: CommandResult = { status: 'waiting', command: 'owo battle', sentAt: 0 }
+let actionCounter: ActionCounter = { "owo hunt": 0, 'owo battle': 0, 'owo pray': 0, 'owo curse': 0 };
+
 const client = new Client();
 
 client.on("messageCreate", async (message: Message) => {
@@ -94,27 +30,31 @@ client.on("messageCreate", async (message: Message) => {
 
     if (currentStatus != "running" && message.content == 'start' && message.author?.id == config.accountId) {
         currentStatus = 'running';
-
+        console.log(`[BOT STATUS] BOT STARTED!`)
         BotLoop();
         return;
     }
 
+    if (currentStatus == "running" && message.content == 'stop' && message.author?.id == config.accountId) {
+        currentStatus = 'idle';
+        console.log(`[BOT STATUS] BOT STOPPED!`);
+        return;
+    }
+
     if (isOwOBotMessage(message)) {
-        console.log("OwO Replied: ", message);
+        console.log(`Owo Replied: ${message.content || `[Embed/Image]`}`);
 
         if (checkCaptcha(message)) {
             currentStatus = 'captcha_alert';
-            console.log("Have to put some hard pull for captcha reminder");
-            sound.play(soundPath).catch((err: any) => console.error(err));
+            console.log(`[ALERT] CAPTCHA APPEARED!`);
+            if (config.soundPlay)
+                playSound();
             return;
         }
     }
 });
 
-function jitter(min: number, max: number): number {
-    let additionalWait = Math.random() * (max - min) + min;
-    return additionalWait;
-}
+
 
 async function BotLoop() {
     const channelLink = await client.channels.fetch(config.targetChannelId) as GuildTextBasedChannel;
@@ -124,9 +64,14 @@ async function BotLoop() {
         let huntCooldown: number = config.cooldowns.hunt + jitter(2000, 8000);
 
         if (config.enableAutoHunt && now - lastRan[huntCommand.command] > huntCooldown) {
-            await channelLink.send(huntCommand.command);
-            lastRan[huntCommand.command] = now;
-            console.log('[ACTION] Sent: owo hunt');
+            try {
+                await channelLink.send(huntCommand.command);
+                lastRan[huntCommand.command] = now;
+                actionCounter[huntCommand.command] += 1;
+                console.log('[ACTION] Sent: owo hunt');
+            } catch (error: any) {
+                console.error(`[ERROR] Couldn't send the action! [HUNT]: ${error}`);
+            }
             await sleep(4000);
         }
 
@@ -135,15 +80,21 @@ async function BotLoop() {
 
         let battleCooldown: number = config.cooldowns.battle + jitter(3000, 10000);
         if (config.enableAutoBattle && now - lastRan[battleCommand.command] > battleCooldown) {
-            await channelLink.send(battleCommand.command);
-            lastRan[battleCommand.command] = Date.now();
-            console.log('[ACTION] Sent: owo battle');
+            try {
+                await channelLink.send(battleCommand.command);
+                lastRan[battleCommand.command] = Date.now();
+                actionCounter[battleCommand.command] += 1;
+                console.log('[ACTION] Sent: owo battle');
+            } catch (error) {
+                console.error(`[ERROR] Couldn't send the action! [BATTLE]: ${error}`);
+            }
             await sleep(jitter(1500, 3000))
         }
 
         await sleep(5000);
     }
-}
+};
+
 client.once('ready', async () => {
     if (!client.user)
         return;
@@ -151,4 +102,4 @@ client.once('ready', async () => {
     console.log(`${client.user.username} is ready`);
 });
 
-client.login(TOKEN);
+client.login(config.token);

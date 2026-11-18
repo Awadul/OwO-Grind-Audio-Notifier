@@ -8,7 +8,12 @@
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": [],
+  "keywords": [
+    "OwO Grind",
+    "OwO Discord",
+    "OwO Bot Automatic",
+    "OwO Grind"
+  ],
   "author": "Awadul",
   "license": "ISC",
   "type": "module",
