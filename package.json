@@ -1,7 +1,7 @@
 {
   "name": "customowobot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Minimalistic OwO bot with built-in audio alert to notify when a captcha appears.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
-  "author": "",
+  "author": "Awadul",
   "license": "ISC",
   "type": "module",
   "devDependencies": {
