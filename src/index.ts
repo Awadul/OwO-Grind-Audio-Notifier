@@ -4,6 +4,8 @@ import { checkCaptcha } from "./utils/captcha.util.js";
 import { playSound } from "./utils/sound.util.js";
 import type { CooldownTracker, CurrentStatus, CommandResult, ActionCounter } from "./types/index.js";
 import { config } from "./config/config.js";
+import { checkGems, parseGems } from "./utils/inventory.util.js";
+import { isHuntMessage, isInventoryMessage } from "./utils/action.util.js";
 
 function isOwOBotMessage(message: Message): boolean {
     return message.channelId === config.targetChannelId && message.author?.id === config.owoBotId
@@ -30,7 +32,8 @@ client.on("messageCreate", async (message: Message) => {
 
     if (currentStatus != "running" && message.content == 'start' && message.author?.id == config.accountId) {
         currentStatus = 'running';
-        console.log(`[BOT STATUS] BOT STARTED!`)
+        console.log(`[BOT STATUS] BOT STARTED!`);
+        message.channel.send("owo inv");
         BotLoop();
         return;
     }
@@ -44,6 +47,15 @@ client.on("messageCreate", async (message: Message) => {
     if (isOwOBotMessage(message)) {
         console.log(`Owo Replied: ${message.content || `[Embed/Image]`}`);
 
+        if (isInventoryMessage(message)) {
+            console.log('[INVENTORY] saving the picture of the inventory!');
+            parseGems(message);
+        }
+
+        if (isHuntMessage(message)) {
+            checkGems(message);
+        }
+
         if (checkCaptcha(message)) {
             currentStatus = 'captcha_alert';
             console.log(`[ALERT] CAPTCHA APPEARED!`);
@@ -53,8 +65,6 @@ client.on("messageCreate", async (message: Message) => {
         }
     }
 });
-
-
 
 async function BotLoop() {
     const channelLink = await client.channels.fetch(config.targetChannelId) as GuildTextBasedChannel;
