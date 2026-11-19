@@ -1,20 +1,25 @@
 {
   "name": "customowobot",
   "version": "1.0.0",
-  "description": "Minimalistic OwO bot with built-in audio alert to notify when a captcha appears.",
-  "main": "index.js",
+  "description": "Minimalistic OwO bot with built-in audio alerts for captcha detection. CAUTION: This project is strictly for learning and educational purposes only.",
+  "main": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
-    "OwO Grind",
     "OwO Discord",
     "OwO Bot Automatic",
-    "OwO Grind"
+    "OwO Grind",
+    "TypeScript",
+    "Educational",
+    "Selfbot Learning"
   ],
-  "author": "Awadul",
+  "author": {
+    "name": "Muhammad Awais Abdullah (Awadul)",
+    "email": "awaisabdullahm@gmail.com"
+  },
   "license": "ISC",
   "type": "module",
   "devDependencies": {
