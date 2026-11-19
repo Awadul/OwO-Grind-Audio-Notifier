@@ -47,15 +47,6 @@ client.on("messageCreate", async (message: Message) => {
     if (isOwOBotMessage(message)) {
         console.log(`Owo Replied: ${message.content || `[Embed/Image]`}`);
 
-        if (isInventoryMessage(message)) {
-            console.log('[INVENTORY] saving the picture of the inventory!');
-            parseGems(message);
-        }
-
-        if (isHuntMessage(message)) {
-            checkGems(message);
-        }
-
         if (checkCaptcha(message)) {
             currentStatus = 'captcha_alert';
             console.log(`[ALERT] CAPTCHA APPEARED!`);
@@ -63,6 +54,15 @@ client.on("messageCreate", async (message: Message) => {
                 playSound();
             return;
         }
+
+        if (isInventoryMessage(message)) {
+            parseGems(message);
+        }
+
+        if (isHuntMessage(message)) {
+            checkGems(message);
+        }
+
     }
 });
 

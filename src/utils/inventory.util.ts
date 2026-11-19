@@ -3,7 +3,6 @@ import { GEM_TIERS, type GemInfo, type GemSlot, type GemTier } from "../types/in
 import { isGemName } from "../config/inventory.js";
 import type { Message } from "@deksdeveloper/discord.js-self-bot";
 import { config } from "../config/config.js";
-import { count } from "node:console";
 
 const superMap: Record<string, string> = {
     '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
@@ -41,30 +40,44 @@ export function parseGems(message: Message): void {
             }
         }
     }
+    console.log('[INVENTORY SNAPSHOT] Saved the inventory gems!');
+    console.log(`GEMS SNAPSHOT: `);
+    console.dir(gemInventory, { depth: null, colors: true });
 };
 
 export function checkGems(message: Message): void {
+
+    let gemString: string = 'owo use ';
+    if (!config.enableAutoGems) return;
+
     let content = message.content.toLowerCase();
     let maxTierNumber = TIER_RANKS[config.maxGemTier];
 
-    if (!content.includes('gem1')) {
-        // find the gems with the equal or lower id from the gemInventory
-        const availableGems = Object.values(gemInventory).filter(
-            gem => gem.slot === 1 && gem.count > 0 && gem.tierLevel <= maxTierNumber
-        ).sort((a, b) => b.tierLevel - a.tierLevel);
+    const gemsTypes: string[] = ['gem1', 'gem3', 'gem4'];
+    for (let gemSlot of gemsTypes) {
+        if (!content.includes(gemSlot)) {
+            // find the gems with the equal or lower id from the gemInventory
+            const availableGems = Object.values(gemInventory).filter(
+                gem => gem.slot === Number(gemSlot.slice(-1)) && gem.count > 0 && gem.tierLevel <= maxTierNumber
+            ).sort((a, b) => b.tierLevel - a.tierLevel);
 
-        if (availableGems.length == 0) return;
+            if (availableGems.length == 0) return;
 
-        let selectedGem = availableGems[0];
+            let selectedGem = availableGems[0];
 
-        if (selectedGem) {
-            try {
-                message.channel.send(`owo use ${selectedGem.id}`)
-            } catch (error) {
-                console.error(`[INVENTORY] Can't use the gem ${selectedGem}!`)
+            if (selectedGem) {
+                try {
+                    selectedGem.count -= 1;
+                    // message.channel.send(`owo use ${selectedGem.id}`)
+                    gemString += selectedGem.id + ' ';
+                } catch (error) {
+                    console.error(`[INVENTORY] Can't use the gem ${selectedGem}!`)
+                }
+            } else {
+                console.warn(`[GEMS] No valid Slot 1 gems found under tier ${config.maxGemTier}!`);
             }
-        } else {
-            console.warn(`[GEMS] No valid Slot 1 gems found under tier ${config.maxGemTier}!`);
         }
     }
+    if (gemString.trim() != 'owo use')
+        message.channel.send(gemString);
 }

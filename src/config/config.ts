@@ -20,7 +20,7 @@ export const config: BotConfig = {
     enableAutoBattle: true,
     enableAutoCurse: false,
     enableAutoHunt: true,
-    enableAutoGems: false,
+    enableAutoGems: true,
     enableAutoPray: false,
     maxGemTier: 'm'
 };
