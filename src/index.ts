@@ -1,45 +1,46 @@
-import { Client, Message, type GuildTextBasedChannel } from "@deksdeveloper/discord.js-self-bot";
+import { Client, Message, type ErrorEvent, type GuildTextBasedChannel } from "@deksdeveloper/discord.js-self-bot";
 import { sleep, jitter } from "./utils/timer.util.js";
 import { checkCaptcha } from "./utils/captcha.util.js";
 import { playSound } from "./utils/sound.util.js";
-import type { CooldownTracker, CurrentStatus, CommandResult, ActionCounter } from "./types/index.js";
+import type { CurrentStatus, BotTask } from "./types/index.js";
 import { config } from "./config/config.js";
 import { checkGems, parseGems } from "./utils/inventory.util.js";
 import { isHuntMessage, isInventoryMessage } from "./utils/action.util.js";
+import { errorHandler } from "./utils/error.util.js";
 
 function isOwOBotMessage(message: Message): boolean {
     return message.channelId === config.targetChannelId && message.author?.id === config.owoBotId
 };
 
-const lastRan: CooldownTracker = {
-    "owo battle": 0,
-    "owo curse": 0,
-    "owo hunt": 0,
-    "owo pray": 0
-};
-
-let currentStatus: CurrentStatus = 'idle';
-let huntCommand: CommandResult = { status: 'waiting', command: 'owo hunt', sentAt: 0 }
-let battleCommand: CommandResult = { status: 'waiting', command: 'owo battle', sentAt: 0 }
-let actionCounter: ActionCounter = { "owo hunt": 0, 'owo battle': 0, 'owo pray': 0, 'owo curse': 0 };
-
+let currentStatus: CurrentStatus = {
+    state: 'idle',
+    sessionStartedAt: Date.now(),
+    sessionJitter: jitter(100000, 400000)
+}
+const TASKS: BotTask[] = [
+    { name: 'owo hunt', status: 'waiting', cooldownMs: config.cooldowns['owo hunt'], jitter: [2000, 8000], enabled: () => config.enableAutoHunt, sentAt: 0, count: 0 },
+    { name: 'owo battle', status: 'waiting', cooldownMs: config.cooldowns['owo battle'], jitter: [4000, 10000], enabled: () => config.enableAutoBattle, sentAt: 0, count: 0 },
+    { name: 'owo pray', status: 'waiting', cooldownMs: config.cooldowns['owo pray'], jitter: [100000, 150000], enabled: () => config.enableAutoPray, sentAt: 0, count: 0 },
+    { name: 'owo curse', status: 'waiting', cooldownMs: config.cooldowns['owo curse'], jitter: [150000, 200000], enabled: () => config.enableAutoCurse, sentAt: 0, count: 0 },
+];
 const client = new Client();
 
 client.on("messageCreate", async (message: Message) => {
 
     if (message.channelId != config.targetChannelId) return;
-    if (currentStatus == 'idle' && message.content != 'start') return;
+    if (currentStatus.state == 'idle' && message.content != 'start') return;
 
-    if (currentStatus != "running" && message.content == 'start' && message.author?.id == config.accountId) {
-        currentStatus = 'running';
+    if (currentStatus.state != "running" && message.content == 'start' && message.author?.id == config.accountId) {
+        currentStatus.state = 'running';
+        currentStatus.sessionStartedAt = Date.now();
+        setTimeout(() => message.channel.send("owo inv"), 20000 + jitter(2000, 7000));
         console.log(`[BOT STATUS] BOT STARTED!`);
-        message.channel.send("owo inv");
         BotLoop();
         return;
     }
 
-    if (currentStatus == "running" && message.content == 'stop' && message.author?.id == config.accountId) {
-        currentStatus = 'idle';
+    if (currentStatus.state == "running" && message.content == 'stop' && message.author?.id == config.accountId) {
+        currentStatus.state = 'idle';
         console.log(`[BOT STATUS] BOT STOPPED!`);
         return;
     }
@@ -48,7 +49,7 @@ client.on("messageCreate", async (message: Message) => {
         console.log(`Owo Replied: ${message.content || `[Embed/Image]`}`);
 
         if (checkCaptcha(message)) {
-            currentStatus = 'captcha_alert';
+            currentStatus.state = 'captcha_alert';
             console.log(`[ALERT] CAPTCHA APPEARED!`);
             if (config.soundPlay)
                 playSound();
@@ -68,39 +69,43 @@ client.on("messageCreate", async (message: Message) => {
 
 async function BotLoop() {
     const channelLink = await client.channels.fetch(config.targetChannelId) as GuildTextBasedChannel;
-    while (currentStatus == 'running') {
+
+    while (currentStatus.state == 'running') {
 
         const now = Date.now();
-        let huntCooldown: number = config.cooldowns.hunt + jitter(2000, 8000);
 
-        if (config.enableAutoHunt && now - lastRan[huntCommand.command] > huntCooldown) {
-            try {
-                await channelLink.send(huntCommand.command);
-                lastRan[huntCommand.command] = now;
-                actionCounter[huntCommand.command] += 1;
-                console.log('[ACTION] Sent: owo hunt');
-            } catch (error: any) {
-                console.error(`[ERROR] Couldn't send the action! [HUNT]: ${error}`);
-            }
-            await sleep(4000);
+        if (now - currentStatus.sessionStartedAt > config.sessionGap + currentStatus.sessionJitter) {
+            console.log(`[Session Break]: Going to sleep for: `, currentStatus.sessionJitter / 60000)
+            await sleep(currentStatus.sessionJitter);
+            currentStatus.sessionJitter = jitter(600000, 1800000);
+            currentStatus.sessionStartedAt = Date.now();
         }
 
-        if (currentStatus != "running")
-            break;
 
-        let battleCooldown: number = config.cooldowns.battle + jitter(3000, 10000);
-        if (config.enableAutoBattle && now - lastRan[battleCommand.command] > battleCooldown) {
+        for (let task of TASKS) {
+
+            let taskCooldown: number = config.cooldowns[task.name] + jitter(...task.jitter)
             try {
-                await channelLink.send(battleCommand.command);
-                lastRan[battleCommand.command] = Date.now();
-                actionCounter[battleCommand.command] += 1;
-                console.log('[ACTION] Sent: owo battle');
+                if (task.enabled() && now - task.sentAt > taskCooldown) {
+
+                    if (currentStatus.state !== 'running')
+                        break;
+                    await channelLink.sendTyping();
+                    await sleep(jitter(1200, 2400));
+                    await channelLink.send(task.name);
+                    task.sentAt = now;
+                    task.count += 1;
+                    console.log(`[ACTION SENT] ${task.name}`)
+
+                    await sleep(jitter(3000, 7000));
+                }
             } catch (error) {
-                console.error(`[ERROR] Couldn't send the action! [BATTLE]: ${error}`);
+                if (errorHandler(error)) {
+                    currentStatus.state = 'idle';
+                    break;
+                }
             }
-            await sleep(jitter(1500, 3000))
         }
-
         await sleep(5000);
     }
 };
@@ -112,4 +117,17 @@ client.once('ready', async () => {
     console.log(`${client.user.username} is ready`);
 });
 
-client.login(config.token);
+(async () => {
+    try {
+        await client.login(config.token);
+    } catch (error: any) {
+
+        console.error('[LOGIN ERROR] Failed to authenticate with Discord:');
+
+        if (error.code === 'TOKEN_INVALID' || error.message?.includes('TOKEN_INVALID')) {
+            console.error('[INVALID TOKEN] UPDATE .env!');
+        } else {
+            console.error(error);
+        }
+    }
+})();

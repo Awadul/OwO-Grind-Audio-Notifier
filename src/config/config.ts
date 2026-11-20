@@ -12,11 +12,12 @@ export const config: BotConfig = {
     targetChannelId: getRequiredEnv("CHANNEL_ID"),
     accountId: getRequiredEnv("ACCOUNT_ID"),
     cooldowns: {
-        hunt: 17000,
-        battle: 19000,
-        pray: 350000,
-        curse: 380000
+        'owo hunt': 17000,
+        'owo battle': 19000,
+        'owo pray': 350000,
+        'owo curse': 380000
     },
+    sessionGap: 3000000,
     enableAutoBattle: true,
     enableAutoCurse: false,
     enableAutoHunt: true,

@@ -1,6 +1,10 @@
 export type OwOCommand = 'owo hunt' | 'owo battle' | 'owo pray' | 'owo curse';
-export type CommandResult = { status: 'waiting' | 'sent' | 'completed', command: OwOCommand, sentAt: number };
-export type CurrentStatus = 'idle' | 'running' | 'cooldown' | 'captcha_alert';
+// export type CommandResult = { status: 'waiting' | 'sent' | 'completed', command: OwOCommand, sentAt: number };
+export type CurrentStatus = {
+    state: 'idle' | 'running' | 'cooldown' | 'captcha_alert';
+    sessionStartedAt: number;
+    sessionJitter: number;
+};
 export type CooldownTracker = Record<OwOCommand, number>
 export type ActionCounter = Record<OwOCommand, number>
 
@@ -27,6 +31,16 @@ export interface GemInfo {
 
 export type GemInventory = Record<GemName, GemInfo>;
 
+export interface BotTask {
+    name: OwOCommand,
+    cooldownMs: number,
+    jitter: [number, number];
+    enabled: () => boolean;
+    status: 'waiting' | 'sent' | 'completed';
+    sentAt: number;
+    count: number;
+};
+
 export interface BotConfig {
     readonly prefix: string;
     readonly token: string;
@@ -36,11 +50,12 @@ export interface BotConfig {
     readonly owoBotId: string;
     accountId: string;
     cooldowns: {
-        hunt: number;
-        battle: number;
-        pray: number;
-        curse: number
+        'owo hunt': number;
+        'owo battle': number;
+        'owo pray': number;
+        'owo curse': number
     };
+    sessionGap: number;
     enableAutoBattle: boolean;
     enableAutoCurse: boolean;
     enableAutoHunt: boolean;
