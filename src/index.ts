@@ -50,7 +50,6 @@ client.on("messageCreate", async (message: Message) => {
 
         if (checkCaptcha(message)) {
             currentStatus.state = 'captcha_alert';
-            console.log(`[ALERT] CAPTCHA APPEARED!`);
             if (config.soundPlay)
                 playSound();
             return;
@@ -74,24 +73,29 @@ async function BotLoop() {
 
         const now = Date.now();
 
-        if (now - currentStatus.sessionStartedAt > config.sessionGap + currentStatus.sessionJitter) {
+        if (config.enableSessionGap && now - currentStatus.sessionStartedAt > config.sessionGap + currentStatus.sessionJitter) {
             console.log(`[Session Break]: Going to sleep for: `, currentStatus.sessionJitter / 60000)
             await sleep(currentStatus.sessionJitter);
             currentStatus.sessionJitter = jitter(600000, 1800000);
             currentStatus.sessionStartedAt = Date.now();
         }
 
-
+        // random the script
+        if (Math.random() > 0.3 && TASKS[0] && TASKS[1]) {
+            let temp = TASKS[0];
+            TASKS[0] = TASKS[1];
+            TASKS[1] = temp;
+        }
         for (let task of TASKS) {
 
             let taskCooldown: number = config.cooldowns[task.name] + jitter(...task.jitter)
             try {
                 if (task.enabled() && now - task.sentAt > taskCooldown) {
 
-                    if (currentStatus.state !== 'running')
-                        break;
                     await channelLink.sendTyping();
                     await sleep(jitter(1200, 2400));
+                    if (currentStatus.state !== 'running')
+                        return;
                     await channelLink.send(task.name);
                     task.sentAt = now;
                     task.count += 1;

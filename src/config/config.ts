@@ -18,6 +18,7 @@ export const config: BotConfig = {
         'owo curse': 380000
     },
     sessionGap: 3000000,
+    enableSessionGap: false,
     enableAutoBattle: true,
     enableAutoCurse: false,
     enableAutoHunt: true,

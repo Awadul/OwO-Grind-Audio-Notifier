@@ -9,6 +9,7 @@ export function checkCaptcha(message: Message): boolean {
         'human',
         'real',
     ];
-    let captchaFound = captchaMessages.some(element => content.includes(element));
+    let captchaFound: boolean = captchaMessages.some(element => content.includes(element));
+    console.log('[CAPTCHA DETECTED] Solve the captcha!')
     return captchaFound;
 };

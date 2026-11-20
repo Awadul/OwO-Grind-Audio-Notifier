@@ -56,6 +56,7 @@ export interface BotConfig {
         'owo curse': number
     };
     sessionGap: number;
+    enableSessionGap: boolean;
     enableAutoBattle: boolean;
     enableAutoCurse: boolean;
     enableAutoHunt: boolean;
