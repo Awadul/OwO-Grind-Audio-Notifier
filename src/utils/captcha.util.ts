@@ -10,6 +10,7 @@ export function checkCaptcha(message: Message): boolean {
         'real',
     ];
     let captchaFound: boolean = captchaMessages.some(element => content.includes(element));
-    console.log('[CAPTCHA DETECTED] Solve the captcha!')
+    if (captchaFound)
+        console.log('[CAPTCHA DETECTED] Solve the captcha!')
     return captchaFound;
 };

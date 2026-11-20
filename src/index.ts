@@ -97,7 +97,7 @@ async function BotLoop() {
                     if (currentStatus.state !== 'running')
                         return;
                     await channelLink.send(task.name);
-                    task.sentAt = now;
+                    task.sentAt = Date.now();
                     task.count += 1;
                     console.log(`[ACTION SENT] ${task.name}`)
 

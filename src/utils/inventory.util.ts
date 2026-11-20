@@ -61,17 +61,18 @@ export function checkGems(message: Message): void {
                 gem => gem.slot === Number(gemSlot.slice(-1)) && gem.count > 0 && gem.tierLevel <= maxTierNumber
             ).sort((a, b) => b.tierLevel - a.tierLevel);
 
-            if (availableGems.length == 0) return;
+            // particular gemSlot has no gems left
+            if (availableGems.length == 0) continue;
 
             let selectedGem = availableGems[0];
 
             if (selectedGem) {
                 try {
                     selectedGem.count -= 1;
-                    // message.channel.send(`owo use ${selectedGem.id}`)
                     gemString += selectedGem.id + ' ';
                 } catch (error) {
-                    console.error(`[INVENTORY] Can't use the gem ${selectedGem}!`)
+                
+                    console.error(`[INVENTORY] Can't use the gem ${selectedGem.name}!`)
                 }
             } else {
                 console.warn(`[GEMS] No valid Slot 1 gems found under tier ${config.maxGemTier}!`);
